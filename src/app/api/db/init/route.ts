@@ -1,0 +1,217 @@
+import { NextResponse } from "next/server";
+import { neon } from "@neondatabase/serverless";
+
+export async function GET(request: Request) {
+  // Check for secret token to prevent unauthorized access
+  const { searchParams } = new URL(request.url);
+  const token = searchParams.get("token");
+  
+  if (token !== process.env.NEXTAUTH_SECRET) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const sql = neon(process.env.DATABASE_URL!);
+
+    // Create enums
+    await sql`
+      DO $$ BEGIN
+        CREATE TYPE role AS ENUM ('user', 'admin');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
+    `;
+
+    await sql`
+      DO $$ BEGIN
+        CREATE TYPE tier AS ENUM ('1', '2', '3', '4', '5');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
+    `;
+
+    await sql`
+      DO $$ BEGIN
+        CREATE TYPE action AS ENUM ('view', 'create', 'edit', 'delete');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
+    `;
+
+    await sql`
+      DO $$ BEGIN
+        CREATE TYPE invitation_status AS ENUM ('pending', 'accepted', 'expired');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
+    `;
+
+    // Create users table
+    await sql`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        name TEXT,
+        email VARCHAR(320) UNIQUE,
+        email_verified TIMESTAMP,
+        image TEXT,
+        hashed_password TEXT,
+        role role DEFAULT 'user' NOT NULL,
+        tier tier DEFAULT '5' NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+        updated_at TIMESTAMP DEFAULT NOW() NOT NULL,
+        last_signed_in TIMESTAMP DEFAULT NOW() NOT NULL
+      );
+    `;
+
+    // Create sessions table
+    await sql`
+      CREATE TABLE IF NOT EXISTS sessions (
+        id TEXT PRIMARY KEY,
+        session_token TEXT NOT NULL UNIQUE,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        expires TIMESTAMP NOT NULL
+      );
+    `;
+
+    // Create accounts table
+    await sql`
+      CREATE TABLE IF NOT EXISTS accounts (
+        id TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        type TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        provider_account_id TEXT NOT NULL,
+        refresh_token TEXT,
+        access_token TEXT,
+        expires_at INTEGER,
+        token_type TEXT,
+        scope TEXT,
+        id_token TEXT,
+        session_state TEXT
+      );
+    `;
+
+    // Create verification_tokens table
+    await sql`
+      CREATE TABLE IF NOT EXISTS verification_tokens (
+        identifier TEXT NOT NULL,
+        token TEXT NOT NULL UNIQUE,
+        expires TIMESTAMP NOT NULL
+      );
+    `;
+
+    // Create resources table
+    await sql`
+      CREATE TABLE IF NOT EXISTS resources (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        description TEXT,
+        url VARCHAR(2048) NOT NULL,
+        category VARCHAR(64) NOT NULL,
+        icon VARCHAR(64),
+        labels TEXT,
+        required_tier tier,
+        is_external BOOLEAN DEFAULT true,
+        is_favorite BOOLEAN DEFAULT false,
+        sort_order INTEGER DEFAULT 0,
+        created_by INTEGER REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+        updated_at TIMESTAMP DEFAULT NOW() NOT NULL
+      );
+    `;
+
+    // Create categories table
+    await sql`
+      CREATE TABLE IF NOT EXISTS categories (
+        id VARCHAR(64) PRIMARY KEY,
+        name VARCHAR(128) NOT NULL,
+        icon VARCHAR(64),
+        color VARCHAR(32),
+        sort_order INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+        updated_at TIMESTAMP DEFAULT NOW() NOT NULL
+      );
+    `;
+
+    // Create labels table
+    await sql`
+      CREATE TABLE IF NOT EXISTS labels (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(128) NOT NULL UNIQUE,
+        created_at TIMESTAMP DEFAULT NOW() NOT NULL
+      );
+    `;
+
+    // Create access_logs table
+    await sql`
+      CREATE TABLE IF NOT EXISTS access_logs (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        user_name VARCHAR(255),
+        resource_id INTEGER REFERENCES resources(id),
+        resource_title VARCHAR(255),
+        resource_url VARCHAR(2048),
+        action action NOT NULL,
+        timestamp TIMESTAMP DEFAULT NOW() NOT NULL
+      );
+    `;
+
+    // Create invitations table
+    await sql`
+      CREATE TABLE IF NOT EXISTS invitations (
+        id SERIAL PRIMARY KEY,
+        token VARCHAR(64) NOT NULL UNIQUE,
+        email VARCHAR(320),
+        initial_tier tier DEFAULT '5' NOT NULL,
+        status invitation_status DEFAULT 'pending' NOT NULL,
+        created_by INTEGER REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        used_at TIMESTAMP,
+        used_by INTEGER REFERENCES users(id)
+      );
+    `;
+
+    // Create allowed_domains table
+    await sql`
+      CREATE TABLE IF NOT EXISTS allowed_domains (
+        id SERIAL PRIMARY KEY,
+        domain VARCHAR(255) NOT NULL UNIQUE,
+        description TEXT,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT NOW() NOT NULL
+      );
+    `;
+
+    // Create settings table
+    await sql`
+      CREATE TABLE IF NOT EXISTS settings (
+        key VARCHAR(128) PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT NOW() NOT NULL
+      );
+    `;
+
+    // Create default admin user (password: admin123)
+    await sql`
+      INSERT INTO users (name, email, hashed_password, role, tier)
+      VALUES ('Admin', 'admin@fiterre.com', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.OxQhEIvYh7z4Ky', 'admin', '1')
+      ON CONFLICT (email) DO NOTHING;
+    `;
+
+    return NextResponse.json({ 
+      success: true, 
+      message: "Database initialized successfully",
+      defaultAdmin: {
+        email: "admin@fiterre.com",
+        password: "admin123"
+      }
+    });
+  } catch (error) {
+    console.error("Database initialization error:", error);
+    return NextResponse.json(
+      { error: "Database initialization failed", details: String(error) },
+      { status: 500 }
+    );
+  }
+}
