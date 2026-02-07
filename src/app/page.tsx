@@ -402,13 +402,13 @@ export default function HomePage() {
                   {(user?.name || "U")[0]}
                 </div>
                 <div>
-                  <p className="font-medium">{user?.name || "ユーザー"}</p>
-                  <p className="text-sm text-gray-500">{user?.email}</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">{user?.name || "ユーザー"}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{user?.email}</p>
                 </div>
               </div>
               {isTier1 && (
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-gray-500">管理者メニュー</p>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">管理者メニュー</p>
                   <Button variant="outline" className="w-full justify-start" onClick={() => { setIsSettingsOpen(false); setIsUserManagementOpen(true); }}>
                     <Users className="h-4 w-4 mr-2" />ユーザー管理
                   </Button>
@@ -418,7 +418,7 @@ export default function HomePage() {
                 </div>
               )}
               <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
-                <span>ダークモード</span>
+                <span className="text-gray-900 dark:text-gray-100">ダークモード</span>
                 <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className={"w-12 h-7 rounded-full transition-colors " + (theme === "dark" ? "bg-primary" : "bg-gray-300")}>
                   <div className={"w-5 h-5 rounded-full bg-white shadow transform transition-transform " + (theme === "dark" ? "translate-x-6" : "translate-x-1")} />
                 </button>
@@ -444,9 +444,9 @@ export default function HomePage() {
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white" style={{ backgroundColor: category.color }}>
                       <Icon className="h-5 w-5" />
                     </div>
-                    <span className="flex-1">{category.name}</span>
+                    <span className="flex-1 text-gray-900 dark:text-gray-100">{category.name}</span>
                     <button onClick={() => setEditingCategory(category)} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg">
-                      <Pencil className="h-4 w-4" />
+                      <Pencil className="h-4 w-4 text-gray-600 dark:text-gray-400" />
                     </button>
                     <button onClick={() => setDeletingCategory(category)} className="p-2 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg text-red-500">
                       <Trash2 className="h-4 w-4" />
@@ -471,11 +471,11 @@ export default function HomePage() {
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div>
-                <label className="text-sm font-medium">カテゴリ名</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">カテゴリ名</label>
                 <Input value={newCategory.name} onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })} placeholder="例: マーケティング" />
               </div>
               <div>
-                <label className="text-sm font-medium block mb-2">アイコン</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">アイコン</label>
                 <div className="grid grid-cols-6 gap-2">
                   {iconOptions.map((opt) => {
                     const Icon = iconMap[opt.id] || FolderOpen;
@@ -488,10 +488,10 @@ export default function HomePage() {
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium block mb-2">カラー</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">カラー</label>
                 <div className="flex gap-2 flex-wrap">
                   {colorOptions.map((opt) => (
-                    <button key={opt.id} onClick={() => setNewCategory({ ...newCategory, color: opt.id })} className={"w-8 h-8 rounded-full transition-all " + (newCategory.color === opt.id ? "ring-2 ring-offset-2 ring-primary" : "")} style={{ backgroundColor: opt.id }} />
+                    <button key={opt.id} onClick={() => setNewCategory({ ...newCategory, color: opt.id })} className={"w-8 h-8 rounded-full transition-all " + (newCategory.color === opt.id ? "ring-2 ring-offset-2 ring-primary dark:ring-offset-gray-900" : "")} style={{ backgroundColor: opt.id }} />
                   ))}
                 </div>
               </div>
@@ -512,11 +512,11 @@ export default function HomePage() {
             {editingCategory && (
               <div className="space-y-4 py-4">
                 <div>
-                  <label className="text-sm font-medium">カテゴリ名</label>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">カテゴリ名</label>
                   <Input value={editingCategory.name} onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })} />
                 </div>
                 <div>
-                  <label className="text-sm font-medium block mb-2">アイコン</label>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">アイコン</label>
                   <div className="grid grid-cols-6 gap-2">
                     {iconOptions.map((opt) => {
                       const Icon = iconMap[opt.id] || FolderOpen;
@@ -529,10 +529,10 @@ export default function HomePage() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-sm font-medium block mb-2">カラー</label>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">カラー</label>
                   <div className="flex gap-2 flex-wrap">
                     {colorOptions.map((opt) => (
-                      <button key={opt.id} onClick={() => setEditingCategory({ ...editingCategory, color: opt.id })} className={"w-8 h-8 rounded-full transition-all " + (editingCategory.color === opt.id ? "ring-2 ring-offset-2 ring-primary" : "")} style={{ backgroundColor: opt.id }} />
+                      <button key={opt.id} onClick={() => setEditingCategory({ ...editingCategory, color: opt.id })} className={"w-8 h-8 rounded-full transition-all " + (editingCategory.color === opt.id ? "ring-2 ring-offset-2 ring-primary dark:ring-offset-gray-900" : "")} style={{ backgroundColor: opt.id }} />
                     ))}
                   </div>
                 </div>
@@ -551,7 +551,7 @@ export default function HomePage() {
             <DialogHeader>
               <DialogTitle>カテゴリを削除</DialogTitle>
             </DialogHeader>
-            <p className="py-4">「{deletingCategory?.name}」を削除しますか？<br /><span className="text-sm text-gray-500">このカテゴリ内のリソースは削除されません。</span></p>
+            <p className="py-4 text-gray-700 dark:text-gray-300">「{deletingCategory?.name}」を削除しますか？<br /><span className="text-sm text-gray-500 dark:text-gray-400">このカテゴリ内のリソースは削除されません。</span></p>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDeletingCategory(null)}>キャンセル</Button>
               <Button variant="destructive" onClick={handleDeleteCategory}>削除</Button>
@@ -635,9 +635,9 @@ export default function HomePage() {
         <DialogContent>
           <DialogHeader><DialogTitle>リソースを追加</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
-            <div><label className="text-sm font-medium">タイトル</label><Input value={newResource.title} onChange={(e) => setNewResource({ ...newResource, title: e.target.value })} placeholder="例: Google Drive" /></div>
-            <div><label className="text-sm font-medium">URL</label><Input value={newResource.url} onChange={(e) => setNewResource({ ...newResource, url: e.target.value })} placeholder="https://..." /></div>
-            <div><label className="text-sm font-medium">説明（任意）</label><Input value={newResource.description} onChange={(e) => setNewResource({ ...newResource, description: e.target.value })} placeholder="メモ" /></div>
+            <div><label className="text-sm font-medium text-gray-700 dark:text-gray-300">タイトル</label><Input value={newResource.title} onChange={(e) => setNewResource({ ...newResource, title: e.target.value })} placeholder="例: Google Drive" /></div>
+            <div><label className="text-sm font-medium text-gray-700 dark:text-gray-300">URL</label><Input value={newResource.url} onChange={(e) => setNewResource({ ...newResource, url: e.target.value })} placeholder="https://..." /></div>
+            <div><label className="text-sm font-medium text-gray-700 dark:text-gray-300">説明（任意）</label><Input value={newResource.description} onChange={(e) => setNewResource({ ...newResource, description: e.target.value })} placeholder="メモ" /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddResourceOpen(false)}>キャンセル</Button>
@@ -654,9 +654,9 @@ export default function HomePage() {
           <DialogHeader><DialogTitle>リソースを編集</DialogTitle></DialogHeader>
           {editingResource && (
             <div className="space-y-4 py-4">
-              <div><label className="text-sm font-medium">タイトル</label><Input value={editingResource.title} onChange={(e) => setEditingResource({ ...editingResource, title: e.target.value })} /></div>
-              <div><label className="text-sm font-medium">URL</label><Input value={editingResource.url} onChange={(e) => setEditingResource({ ...editingResource, url: e.target.value })} /></div>
-              <div><label className="text-sm font-medium">説明</label><Input value={editingResource.description || ""} onChange={(e) => setEditingResource({ ...editingResource, description: e.target.value })} /></div>
+              <div><label className="text-sm font-medium text-gray-700 dark:text-gray-300">タイトル</label><Input value={editingResource.title} onChange={(e) => setEditingResource({ ...editingResource, title: e.target.value })} /></div>
+              <div><label className="text-sm font-medium text-gray-700 dark:text-gray-300">URL</label><Input value={editingResource.url} onChange={(e) => setEditingResource({ ...editingResource, url: e.target.value })} /></div>
+              <div><label className="text-sm font-medium text-gray-700 dark:text-gray-300">説明</label><Input value={editingResource.description || ""} onChange={(e) => setEditingResource({ ...editingResource, description: e.target.value })} /></div>
               <div><label className="text-sm font-medium text-gray-700 dark:text-gray-300">カテゴリ</label>
                 <select value={editingResource.category} onChange={(e) => setEditingResource({ ...editingResource, category: e.target.value })} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
                   {categories.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
@@ -677,7 +677,7 @@ export default function HomePage() {
       <Dialog open={!!deletingResource} onOpenChange={(open) => !open && setDeletingResource(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>削除の確認</DialogTitle></DialogHeader>
-          <p className="py-4">「{deletingResource?.title}」を削除しますか？この操作は取り消せません。</p>
+          <p className="py-4 text-gray-700 dark:text-gray-300">「{deletingResource?.title}」を削除しますか？この操作は取り消せません。</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeletingResource(null)}>キャンセル</Button>
             <Button variant="destructive" onClick={() => deleteResource.mutate({ id: deletingResource.id })} disabled={deleteResource.isPending}>
