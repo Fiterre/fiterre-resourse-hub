@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
+import bcrypt from "bcryptjs";
 
 export const dynamic = "force-dynamic";
 
@@ -201,13 +202,15 @@ export async function GET(request: Request) {
     `;
 
     // Create default admin user (password: admin123)
-    // Hash generated with bcrypt, rounds=12
-    const adminHash = "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.OxQhEIvYh7z4Ky";
+    const adminPassword = "admin123";
+    const adminHash = await bcrypt.hash(adminPassword, 12);
+    
+    // Delete existing admin to reset password
+    await sql`DELETE FROM users WHERE email = 'admin@fiterre.com'`;
     
     await sql`
       INSERT INTO users (name, email, hashed_password, role, tier)
       VALUES ('Admin', 'admin@fiterre.com', ${adminHash}, 'admin', '1')
-      ON CONFLICT (email) DO NOTHING;
     `;
 
     return NextResponse.json({ 
