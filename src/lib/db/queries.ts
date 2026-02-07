@@ -42,21 +42,31 @@ export async function createUser(data: {
 }
 
 export async function getUserByEmail(email: string) {
-  const result = await db
-    .select()
-    .from(users)
-    .where(eq(users.email, email))
-    .limit(1);
-  return result.length > 0 ? result[0] : null;
+  try {
+    const result = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+    return result.length > 0 ? result[0] : null;
+  } catch (error) {
+    console.error("getUserByEmail error:", error);
+    return null;
+  }
 }
 
 export async function getUserById(id: number) {
-  const result = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, id))
-    .limit(1);
-  return result.length > 0 ? result[0] : null;
+  try {
+    const result = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, id))
+      .limit(1);
+    return result.length > 0 ? result[0] : null;
+  } catch (error) {
+    console.error("getUserById error:", error);
+    return null;
+  }
 }
 
 export async function getAllUsers() {
@@ -72,16 +82,21 @@ export async function updateUserTier(
 }
 
 export async function verifyPassword(email: string, password: string) {
-  const user = await getUserByEmail(email);
-  if (!user || !user.hashedPassword) return null;
-  const isValid = await bcryptjs.compare(password, user.hashedPassword);
-  if (!isValid) return null;
-  // Update last signed in
-  await db
-    .update(users)
-    .set({ lastSignedIn: new Date() })
-    .where(eq(users.id, user.id));
-  return user;
+  try {
+    const user = await getUserByEmail(email);
+    if (!user || !user.hashedPassword) return null;
+    const isValid = await bcryptjs.compare(password, user.hashedPassword);
+    if (!isValid) return null;
+    // Update last signed in
+    await db
+      .update(users)
+      .set({ lastSignedIn: new Date() })
+      .where(eq(users.id, user.id));
+    return user;
+  } catch (error) {
+    console.error("verifyPassword error:", error);
+    return null;
+  }
 }
 
 // ============ Resource Functions ============

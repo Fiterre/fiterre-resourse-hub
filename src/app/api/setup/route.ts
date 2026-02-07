@@ -3,25 +3,14 @@ import { neon } from "@neondatabase/serverless";
 
 export const dynamic = "force-dynamic";
 
+// Simple setup endpoint - use once then disable
 export async function GET(request: Request) {
-  // Check for secret token to prevent unauthorized access
   const { searchParams } = new URL(request.url);
-  const token = searchParams.get("token");
-  const secret = process.env.NEXTAUTH_SECRET;
+  const key = searchParams.get("key");
   
-  // Debug info (remove in production)
-  console.log("Received token:", token);
-  console.log("Expected secret length:", secret?.length);
-  
-  if (!token || !secret || token !== secret) {
-    return NextResponse.json({ 
-      error: "Unauthorized",
-      debug: {
-        tokenLength: token?.length,
-        secretLength: secret?.length,
-        match: token === secret
-      }
-    }, { status: 401 });
+  // Simple setup key
+  if (key !== "fiterre-setup-2024") {
+    return NextResponse.json({ error: "Invalid key" }, { status: 401 });
   }
 
   try {
@@ -212,24 +201,27 @@ export async function GET(request: Request) {
     `;
 
     // Create default admin user (password: admin123)
+    // Hash generated with bcrypt, rounds=12
+    const adminHash = "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.OxQhEIvYh7z4Ky";
+    
     await sql`
       INSERT INTO users (name, email, hashed_password, role, tier)
-      VALUES ('Admin', 'admin@fiterre.com', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.OxQhEIvYh7z4Ky', 'admin', '1')
+      VALUES ('Admin', 'admin@fiterre.com', ${adminHash}, 'admin', '1')
       ON CONFLICT (email) DO NOTHING;
     `;
 
     return NextResponse.json({ 
       success: true, 
-      message: "Database initialized successfully",
-      defaultAdmin: {
+      message: "Database initialized successfully!",
+      admin: {
         email: "admin@fiterre.com",
         password: "admin123"
       }
     });
   } catch (error) {
-    console.error("Database initialization error:", error);
+    console.error("Database setup error:", error);
     return NextResponse.json(
-      { error: "Database initialization failed", details: String(error) },
+      { error: "Database setup failed", details: String(error) },
       { status: 500 }
     );
   }
