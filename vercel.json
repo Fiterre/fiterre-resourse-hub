@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "pnpm run build",
+  "installCommand": "pnpm install",
+  "functions": {
+    "src/app/api/**/*": {
+      "maxDuration": 30
+    }
+  },
+  "crons": []
+}
