@@ -291,19 +291,19 @@ export default function HomePage() {
         {/* Header */}
         <header className="sticky top-0 z-30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700/50">
           <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-            <h1 className="text-xl font-bold">Fiterre Hub</h1>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Fiterre Hub</h1>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
                 className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               >
-                {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                {theme === "dark" ? <Sun className="h-5 w-5 text-gray-700 dark:text-gray-200" /> : <Moon className="h-5 w-5 text-gray-700 dark:text-gray-200" />}
               </button>
               <button
                 onClick={() => setIsSettingsOpen(true)}
                 className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               >
-                <Settings className="h-5 w-5" />
+                <Settings className="h-5 w-5 text-gray-700 dark:text-gray-200" />
               </button>
             </div>
           </div>
@@ -317,7 +317,7 @@ export default function HomePage() {
               placeholder="検索..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-12 h-12 rounded-2xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-lg"
+              className="pl-12 h-12 rounded-2xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-lg text-gray-900 dark:text-white"
             />
           </div>
         </div>
@@ -346,7 +346,7 @@ export default function HomePage() {
                     >
                       <ExternalLink className="h-6 w-6" />
                     </div>
-                    <span className="text-xs text-center line-clamp-2">{resource.title}</span>
+                    <span className="text-xs text-center line-clamp-2 text-gray-900 dark:text-white">{resource.title}</span>
                   </button>
                 ))}
               </div>
@@ -369,7 +369,7 @@ export default function HomePage() {
                       <Icon className="h-8 w-8 sm:h-10 sm:w-10" />
                     </div>
                     <div className="text-center">
-                      <p className="text-sm font-medium">{category.name}</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">{category.name}</p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">{count}件</p>
                     </div>
                   </button>
@@ -381,9 +381,9 @@ export default function HomePage() {
                   className="flex flex-col items-center gap-3 p-4 rounded-3xl hover:bg-white/50 dark:hover:bg-gray-800/50 transition-all border-2 border-dashed border-gray-300 dark:border-gray-600"
                 >
                   <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center bg-gray-200 dark:bg-gray-700">
-                    <Plus className="h-8 w-8 text-gray-500" />
+                    <Plus className="h-8 w-8 text-gray-500 dark:text-gray-400" />
                   </div>
-                  <p className="text-sm text-gray-500">カテゴリ設定</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">カテゴリ設定</p>
                 </button>
               )}
             </div>
@@ -574,12 +574,12 @@ export default function HomePage() {
       <header className="sticky top-0 z-30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700/50">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
           <button onClick={() => setSelectedCategory(null)} className="p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-            <ChevronLeft className="h-5 w-5" />
+            <ChevronLeft className="h-5 w-5 text-gray-700 dark:text-gray-200" />
           </button>
           <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white" style={{ backgroundColor: currentCategory?.color }}>
             <CategoryIcon className="h-4 w-4" />
           </div>
-          <h1 className="text-lg font-bold flex-1">{currentCategory?.name}</h1>
+          <h1 className="text-lg font-bold flex-1 text-gray-900 dark:text-white">{currentCategory?.name}</h1>
           {filteredResources.length > 0 && (
             <Button size="sm" variant="outline" onClick={openAllInCategory} className="text-xs">
               <ExternalLink className="h-3 w-3 mr-1" />すべて開く
@@ -587,7 +587,7 @@ export default function HomePage() {
           )}
           {isTier1 && (
             <button onClick={() => { setNewResource({ ...newResource, category: selectedCategory }); setIsAddResourceOpen(true); }} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-              <Plus className="h-5 w-5" />
+              <Plus className="h-5 w-5 text-gray-700 dark:text-gray-200" />
             </button>
           )}
         </div>
@@ -612,12 +612,12 @@ export default function HomePage() {
                   <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg" style={{ backgroundColor: currentCategory?.color }}>
                     <ExternalLink className="h-6 w-6" />
                   </div>
-                  <span className="text-xs text-center line-clamp-2 leading-tight">{resource.title}</span>
+                  <span className="text-xs text-center line-clamp-2 leading-tight text-gray-900 dark:text-white">{resource.title}</span>
                 </button>
                 {isTier1 && (
                   <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
                     <button onClick={(e) => { e.stopPropagation(); setEditingResource(resource); }} className="p-1 bg-white dark:bg-gray-800 rounded-full shadow-lg">
-                      <Pencil className="h-3 w-3" />
+                      <Pencil className="h-3 w-3 text-gray-600 dark:text-gray-300" />
                     </button>
                     <button onClick={(e) => { e.stopPropagation(); setDeletingResource(resource); }} className="p-1 bg-white dark:bg-gray-800 rounded-full shadow-lg text-red-500">
                       <Trash2 className="h-3 w-3" />
