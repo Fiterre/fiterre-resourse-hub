@@ -11,6 +11,7 @@ import {
   getAllUsers,
   getUserById,
   updateUserTier,
+  updateUserProfile,
   getAllResources,
   getResourceById,
   createResource,
@@ -132,6 +133,21 @@ const usersRouter = router({
     .mutation(async ({ input }) => {
       const result = await updateUserTier(input.userId, input.tier);
       return result[0];
+    }),
+
+  updateProfile: tier1Procedure
+    .input(
+      z.object({
+        userId: z.number(),
+        name: z.string().optional(),
+        email: z.string().email().optional(),
+        password: z.string().min(8).optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const { userId, ...data } = input;
+      const result = await updateUserProfile(userId, data);
+      return result ? result[0] : null;
     }),
 });
 

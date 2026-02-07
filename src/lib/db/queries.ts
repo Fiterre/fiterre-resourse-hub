@@ -81,6 +81,21 @@ export async function updateUserTier(
   return await db.select().from(users).where(eq(users.id, userId)).limit(1);
 }
 
+export async function updateUserProfile(
+  userId: number,
+  data: { name?: string; email?: string; password?: string }
+) {
+  const updates: any = {};
+  if (data.name) updates.name = data.name;
+  if (data.email) updates.email = data.email;
+  if (data.password) updates.hashedPassword = await bcryptjs.hash(data.password, 12);
+  
+  if (Object.keys(updates).length === 0) return null;
+  
+  await db.update(users).set(updates).where(eq(users.id, userId));
+  return await db.select().from(users).where(eq(users.id, userId)).limit(1);
+}
+
 export async function verifyPassword(email: string, password: string) {
   try {
     const user = await getUserByEmail(email);

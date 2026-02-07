@@ -657,8 +657,8 @@ export default function HomePage() {
               <div><label className="text-sm font-medium">タイトル</label><Input value={editingResource.title} onChange={(e) => setEditingResource({ ...editingResource, title: e.target.value })} /></div>
               <div><label className="text-sm font-medium">URL</label><Input value={editingResource.url} onChange={(e) => setEditingResource({ ...editingResource, url: e.target.value })} /></div>
               <div><label className="text-sm font-medium">説明</label><Input value={editingResource.description || ""} onChange={(e) => setEditingResource({ ...editingResource, description: e.target.value })} /></div>
-              <div><label className="text-sm font-medium">カテゴリ</label>
-                <select value={editingResource.category} onChange={(e) => setEditingResource({ ...editingResource, category: e.target.value })} className="w-full p-2 border rounded-lg dark:bg-gray-800">
+              <div><label className="text-sm font-medium text-gray-700 dark:text-gray-300">カテゴリ</label>
+                <select value={editingResource.category} onChange={(e) => setEditingResource({ ...editingResource, category: e.target.value })} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
                   {categories.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
                 </select>
               </div>
@@ -694,11 +694,16 @@ function UserManagementDialogSimple({ open, onOpenChange }: { open: boolean; onO
   const [tab, setTab] = useState<"users" | "invite">("users");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteTier, setInviteTier] = useState<"1" | "2" | "3" | "4" | "5">("5");
+  const [editingUser, setEditingUser] = useState<{ id: number; name: string; email: string; newPassword: string } | null>(null);
 
   const { data: users = [], refetch } = trpc.users.list.useQuery(undefined, { enabled: open });
   const { data: invitations = [], refetch: refetchInvitations } = trpc.invitations.list.useQuery(undefined, { enabled: open && tab === "invite" });
 
   const updateTier = trpc.users.updateTier.useMutation({ onSuccess: () => { toast.success("更新しました"); refetch(); }, onError: (e) => toast.error(e.message) });
+  const updateProfile = trpc.users.updateProfile.useMutation({
+    onSuccess: () => { toast.success("プロフィールを更新しました"); refetch(); setEditingUser(null); },
+    onError: (e) => toast.error(e.message),
+  });
   const createInvitation = trpc.invitations.create.useMutation({
     onSuccess: (data) => {
       const inviteUrl = `${window.location.origin}/register?token=${data.token}`;
@@ -717,78 +722,126 @@ function UserManagementDialogSimple({ open, onOpenChange }: { open: boolean; onO
     createInvitation.mutate({ email: inviteEmail, initialTier: inviteTier, expiresInDays: 7 });
   };
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader><DialogTitle>ユーザー管理</DialogTitle></DialogHeader>
-        
-        {/* Tabs */}
-        <div className="flex gap-2 border-b pb-2">
-          <button onClick={() => setTab("users")} className={"px-3 py-1 rounded-lg text-sm " + (tab === "users" ? "bg-primary text-white" : "hover:bg-gray-100 dark:hover:bg-gray-800")}>ユーザー一覧</button>
-          <button onClick={() => setTab("invite")} className={"px-3 py-1 rounded-lg text-sm " + (tab === "invite" ? "bg-primary text-white" : "hover:bg-gray-100 dark:hover:bg-gray-800")}>招待</button>
-        </div>
+  const handleUpdateProfile = () => {
+    if (!editingUser) return;
+    if (!editingUser.name.trim()) { toast.error("名前を入力してください"); return; }
+    if (!editingUser.email.trim()) { toast.error("メールアドレスを入力してください"); return; }
+    if (editingUser.newPassword && editingUser.newPassword.length < 8) { toast.error("パスワードは8文字以上にしてください"); return; }
+    updateProfile.mutate({
+      userId: editingUser.id,
+      name: editingUser.name,
+      email: editingUser.email,
+      password: editingUser.newPassword || undefined,
+    });
+  };
 
-        {tab === "users" ? (
-          <div className="space-y-3 py-2 max-h-80 overflow-y-auto">
-            {users.map((user) => (
-              <div key={user.id} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">{(user.name || "U")[0]}</div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{user.name || "名前なし"}</p>
-                  <p className="text-xs text-gray-500 truncate">{user.email}</p>
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader><DialogTitle>ユーザー管理</DialogTitle></DialogHeader>
+          
+          {/* Tabs */}
+          <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 pb-2">
+            <button onClick={() => setTab("users")} className={"px-3 py-1 rounded-lg text-sm " + (tab === "users" ? "bg-primary text-white" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800")}>ユーザー一覧</button>
+            <button onClick={() => setTab("invite")} className={"px-3 py-1 rounded-lg text-sm " + (tab === "invite" ? "bg-primary text-white" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800")}>招待</button>
+          </div>
+
+          {tab === "users" ? (
+            <div className="space-y-3 py-2 max-h-80 overflow-y-auto">
+              {users.map((user) => (
+                <div key={user.id} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">{(user.name || "U")[0]}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate text-gray-900 dark:text-gray-100">{user.name || "名前なし"}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user.email}</p>
+                  </div>
+                  <button onClick={() => setEditingUser({ id: user.id, name: user.name || "", email: user.email || "", newPassword: "" })} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg">
+                    <Pencil className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                  </button>
+                  <select value={user.tier} onChange={(e) => updateTier.mutate({ userId: user.id, tier: e.target.value as any })} className="text-sm p-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                    <option value="1">Tier 1</option>
+                    <option value="2">Tier 2</option>
+                    <option value="3">Tier 3</option>
+                    <option value="4">Tier 4</option>
+                    <option value="5">Tier 5</option>
+                  </select>
                 </div>
-                <select value={user.tier} onChange={(e) => updateTier.mutate({ userId: user.id, tier: e.target.value as any })} className="text-sm p-1 border rounded dark:bg-gray-700">
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-4 py-2">
+              {/* Create invitation form */}
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-sm text-blue-700 dark:text-blue-300">
+                <strong>招待の流れ：</strong> 招待作成 → リンクをコピー → メール/チャットで送信
+              </div>
+              <div className="flex gap-2">
+                <Input placeholder="メールアドレス" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className="flex-1" />
+                <select value={inviteTier} onChange={(e) => setInviteTier(e.target.value as any)} className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
                   <option value="1">Tier 1</option>
                   <option value="2">Tier 2</option>
                   <option value="3">Tier 3</option>
                   <option value="4">Tier 4</option>
                   <option value="5">Tier 5</option>
                 </select>
+                <Button onClick={handleInvite} disabled={createInvitation.isPending}>
+                  {createInvitation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "招待"}
+                </Button>
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-4 py-2">
-            {/* Create invitation form */}
-            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-sm text-blue-700 dark:text-blue-300">
-              <strong>招待の流れ：</strong> 招待作成 → リンクをコピー → メール/チャットで送信
-            </div>
-            <div className="flex gap-2">
-              <Input placeholder="メールアドレス" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className="flex-1" />
-              <select value={inviteTier} onChange={(e) => setInviteTier(e.target.value as any)} className="p-2 border rounded-lg dark:bg-gray-800">
-                <option value="1">Tier 1</option>
-                <option value="2">Tier 2</option>
-                <option value="3">Tier 3</option>
-                <option value="4">Tier 4</option>
-                <option value="5">Tier 5</option>
-              </select>
-              <Button onClick={handleInvite} disabled={createInvitation.isPending}>
-                {createInvitation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "招待"}
-              </Button>
-            </div>
 
-            {/* Pending invitations */}
-            <div className="space-y-2 max-h-48 overflow-y-auto">
-              <p className="text-xs text-gray-500 font-medium">保留中の招待</p>
-              {invitations.filter(i => i.status === "pending" && new Date(i.expiresAt) > new Date()).map((inv) => (
-                <div key={inv.id} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm">
-                  <span className="flex-1 truncate">{inv.email}</span>
-                  <span className="text-xs text-gray-500">Tier {inv.initialTier}</span>
-                  <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/register?token=${inv.token}`); toast.success("コピーしました"); }} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded">
-                    <ExternalLink className="h-3 w-3" />
-                  </button>
-                  <button onClick={() => deleteInvitation.mutate({ id: inv.id })} className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-500">
-                    <Trash2 className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
-              {invitations.filter(i => i.status === "pending" && new Date(i.expiresAt) > new Date()).length === 0 && (
-                <p className="text-xs text-gray-400 text-center py-2">保留中の招待はありません</p>
-              )}
+              {/* Pending invitations */}
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">保留中の招待</p>
+                {invitations.filter(i => i.status === "pending" && new Date(i.expiresAt) > new Date()).map((inv) => (
+                  <div key={inv.id} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm">
+                    <span className="flex-1 truncate text-gray-900 dark:text-gray-100">{inv.email}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Tier {inv.initialTier}</span>
+                    <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/register?token=${inv.token}`); toast.success("コピーしました"); }} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400">
+                      <ExternalLink className="h-3 w-3" />
+                    </button>
+                    <button onClick={() => deleteInvitation.mutate({ id: inv.id })} className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-500">
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                {invitations.filter(i => i.status === "pending" && new Date(i.expiresAt) > new Date()).length === 0 && (
+                  <p className="text-xs text-gray-400 dark:text-gray-500 text-center py-2">保留中の招待はありません</p>
+                )}
+              </div>
             </div>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit User Dialog */}
+      <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>ユーザーを編集</DialogTitle></DialogHeader>
+          {editingUser && (
+            <div className="space-y-4 py-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">名前</label>
+                <Input value={editingUser.name} onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })} className="mt-1" />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">メールアドレス</label>
+                <Input value={editingUser.email} onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })} className="mt-1" />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">新しいパスワード（変更する場合のみ）</label>
+                <Input type="password" value={editingUser.newPassword} onChange={(e) => setEditingUser({ ...editingUser, newPassword: e.target.value })} placeholder="8文字以上" className="mt-1" />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">空欄のままにすると、パスワードは変更されません</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingUser(null)}>キャンセル</Button>
+            <Button onClick={handleUpdateProfile} disabled={updateProfile.isPending}>
+              {updateProfile.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "保存"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
