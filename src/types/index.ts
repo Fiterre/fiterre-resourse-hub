@@ -8,6 +8,22 @@ export const tierLabels: Record<TierLevel, string> = {
   "5": "Tier 5 (研修生)",
 };
 
+export const tierShortLabels: Record<TierLevel, string> = {
+  "1": "T1",
+  "2": "T2",
+  "3": "T3",
+  "4": "T4",
+  "5": "T5",
+};
+
+export const tierDescriptions: Record<TierLevel, string> = {
+  "1": "経営層のみアクセス可能",
+  "2": "マネージャー以上がアクセス可能",
+  "3": "リーダー以上がアクセス可能",
+  "4": "正社員以上がアクセス可能",
+  "5": "全ユーザーがアクセス可能",
+};
+
 export const tierColors: Record<TierLevel, string> = {
   "1": "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
   "2": "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",

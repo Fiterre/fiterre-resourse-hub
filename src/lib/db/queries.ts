@@ -138,7 +138,7 @@ export async function updateResource(
   id: number,
   updates: Partial<InsertResource>
 ) {
-  await db.update(resources).set(updates).where(eq(resources.id, id));
+  await db.update(resources).set({ ...updates, updatedAt: new Date() }).where(eq(resources.id, id));
   return await getResourceById(id);
 }
 
@@ -175,12 +175,31 @@ export async function updateCategory(
   id: string,
   updates: Partial<InsertCategory>
 ) {
-  await db.update(categories).set(updates).where(eq(categories.id, id));
+  await db.update(categories).set({ ...updates, updatedAt: new Date() }).where(eq(categories.id, id));
   return await db
     .select()
     .from(categories)
     .where(eq(categories.id, id))
     .limit(1);
+}
+
+export async function getCategoryById(id: string) {
+  const result = await db
+    .select()
+    .from(categories)
+    .where(eq(categories.id, id))
+    .limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+
+export async function upsertCategory(category: InsertCategory) {
+  const existing = await getCategoryById(category.id);
+  if (existing) {
+    await updateCategory(category.id, category);
+  } else {
+    await createCategory(category);
+  }
+  return category.id;
 }
 
 export async function deleteCategory(id: string) {

@@ -109,6 +109,7 @@ export const categories = pgTable("categories", {
   icon: varchar("icon", { length: 64 }),
   color: varchar("color", { length: 32 }),
   sortOrder: integer("sort_order").default(0),
+  requiredTier: tierEnum("required_tier"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

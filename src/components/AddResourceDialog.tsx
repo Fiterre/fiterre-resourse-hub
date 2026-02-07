@@ -21,8 +21,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Loader2 } from "lucide-react";
-import { type TierLevel, tierLabels } from "@/types";
+import { Plus, Loader2, Lock, Shield } from "lucide-react";
+import { type TierLevel, tierLabels, tierDescriptions } from "@/types";
 
 interface AddResourceDialogProps {
   categories: { id: string; name: string }[];
@@ -161,7 +161,10 @@ export function AddResourceDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Tier制限</Label>
+            <Label className="flex items-center gap-1">
+              <Shield className="h-4 w-4" />
+              Tier制限（閲覧権限）
+            </Label>
             <Select
               value={requiredTier}
               onValueChange={(v) =>
@@ -172,7 +175,7 @@ export function AddResourceDialog({
                 <SelectValue placeholder="制限なし" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">制限なし</SelectItem>
+                <SelectItem value="none">制限なし（全員がアクセス可能）</SelectItem>
                 {(["1", "2", "3", "4", "5"] as TierLevel[]).map((tier) => (
                   <SelectItem key={tier} value={tier}>
                     {tierLabels[tier]}
@@ -180,6 +183,12 @@ export function AddResourceDialog({
                 ))}
               </SelectContent>
             </Select>
+            {requiredTier !== "none" && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                <Lock className="inline h-3 w-3 mr-1" />
+                {tierDescriptions[requiredTier as TierLevel]}
+              </p>
+            )}
           </div>
 
           <div className="flex items-center justify-between">

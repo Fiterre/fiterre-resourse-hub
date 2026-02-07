@@ -22,6 +22,7 @@ import {
   createCategory,
   updateCategory,
   deleteCategory,
+  upsertCategory,
   getAllLabels,
   createLabel,
   deleteLabel,
@@ -90,6 +91,14 @@ const authRouter = router({
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "この招待は期限切れです。管理者に新しい招待を依頼してください。",
+        });
+      }
+
+      // Check if invited email matches registration email
+      if (invitation.email.toLowerCase() !== input.email.toLowerCase()) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: `この招待は ${invitation.email} 宛てです。同じメールアドレスで登録してください。`,
         });
       }
 
@@ -167,7 +176,7 @@ const resourcesRouter = router({
     return await getAllResources();
   }),
 
-  create: protectedProcedure
+  create: tier1Procedure
     .input(
       z.object({
         title: z.string().min(1),
@@ -187,7 +196,7 @@ const resourcesRouter = router({
       });
     }),
 
-  update: protectedProcedure
+  update: tier1Procedure
     .input(
       z.object({
         id: z.number(),
@@ -207,13 +216,13 @@ const resourcesRouter = router({
       return await updateResource(id, updates);
     }),
 
-  delete: protectedProcedure
+  delete: tier1Procedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input }) => {
       return await deleteResource(input.id);
     }),
 
-  reorder: protectedProcedure
+  reorder: tier1Procedure
     .input(z.object({ orderedIds: z.array(z.number()) }))
     .mutation(async ({ input }) => {
       return await reorderResources(input.orderedIds);
@@ -222,7 +231,17 @@ const resourcesRouter = router({
 
 // ============ Categories Router ============
 const categoriesRouter = router({
-  list: protectedProcedure.query(async () => {
+  list: protectedProcedure.query(async ({ ctx }) => {
+    const all = await getAllCategories();
+    const userTier = parseInt(ctx.user.tier);
+    // Filter categories based on user tier
+    return all.filter((c) => {
+      if (!c.requiredTier) return true;
+      return userTier <= parseInt(c.requiredTier);
+    });
+  }),
+
+  listAll: tier1Procedure.query(async () => {
     return await getAllCategories();
   }),
 
@@ -234,10 +253,46 @@ const categoriesRouter = router({
         icon: z.string().optional(),
         color: z.string().optional(),
         sortOrder: z.number().optional(),
+        requiredTier: z.enum(["1", "2", "3", "4", "5"]).optional().nullable(),
       })
     )
     .mutation(async ({ input }) => {
       return await createCategory(input);
+    }),
+
+  upsert: tier1Procedure
+    .input(
+      z.object({
+        id: z.string().min(1),
+        name: z.string().min(1),
+        icon: z.string().optional(),
+        color: z.string().optional(),
+        sortOrder: z.number().optional(),
+        requiredTier: z.enum(["1", "2", "3", "4", "5"]).optional().nullable(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return await upsertCategory(input);
+    }),
+
+  syncAll: tier1Procedure
+    .input(
+      z.array(
+        z.object({
+          id: z.string().min(1),
+          name: z.string().min(1),
+          icon: z.string().optional(),
+          color: z.string().optional(),
+          sortOrder: z.number().optional(),
+          requiredTier: z.enum(["1", "2", "3", "4", "5"]).optional().nullable(),
+        })
+      )
+    )
+    .mutation(async ({ input }) => {
+      for (const cat of input) {
+        await upsertCategory(cat);
+      }
+      return { success: true };
     }),
 
   update: tier1Procedure
@@ -248,6 +303,7 @@ const categoriesRouter = router({
         icon: z.string().optional(),
         color: z.string().optional(),
         sortOrder: z.number().optional(),
+        requiredTier: z.enum(["1", "2", "3", "4", "5"]).optional().nullable(),
       })
     )
     .mutation(async ({ input }) => {

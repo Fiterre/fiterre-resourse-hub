@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { tierLabels, tierColors, type TierLevel } from "@/types";
+import { tierLabels, tierColors, tierDescriptions, type TierLevel } from "@/types";
 import { Users, Shield, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 
@@ -173,11 +173,15 @@ export function UserManagementDialog({
         {/* Tier explanation */}
         <div className="mt-4 p-4 bg-muted/50 rounded-lg">
           <h4 className="text-sm font-medium mb-2">Tierレベルについて</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-muted-foreground">
+          <div className="space-y-2 text-xs text-muted-foreground">
             {(["1", "2", "3", "4", "5"] as TierLevel[]).map((tier) => (
-              <div key={tier} className="flex items-center gap-2">
-                <Badge className={tierColors[tier]}>Tier {tier}</Badge>
-                <span>{tierLabels[tier].replace(`Tier ${tier} (`, "").replace(")", "")}</span>
+              <div key={tier} className="flex items-start gap-2">
+                <Badge className={tierColors[tier] + " shrink-0"}>Tier {tier}</Badge>
+                <div>
+                  <span className="font-medium">{tierLabels[tier].replace(`Tier ${tier} (`, "").replace(")", "")}</span>
+                  <span className="mx-1">-</span>
+                  <span>{tierDescriptions[tier]}</span>
+                </div>
               </div>
             ))}
           </div>

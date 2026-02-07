@@ -39,8 +39,11 @@ import {
   Heart,
   Star,
   Zap,
+  Shield,
+  Lock,
 } from "lucide-react";
 import { useTheme } from "next-themes";
+import { type TierLevel, tierLabels, tierDescriptions } from "@/types";
 
 // アイコンマップ
 const iconMap: Record<string, any> = {
@@ -89,20 +92,30 @@ const colorOptions = [
 
 // デフォルトカテゴリ
 const defaultCategories = [
-  { id: "management", name: "管理サイト", icon: "settings", color: "#3B82F6" },
-  { id: "document", name: "資料", icon: "file-text", color: "#22C55E" },
-  { id: "app", name: "アプリ", icon: "app-window", color: "#A855F7" },
-  { id: "training", name: "トレーニング", icon: "dumbbell", color: "#F97316" },
-  { id: "communication", name: "コミュニケーション", icon: "message-circle", color: "#EC4899" },
-  { id: "finance", name: "経理・財務", icon: "calculator", color: "#EAB308" },
+  { id: "management", name: "管理サイト", icon: "settings", color: "#3B82F6", requiredTier: null as TierLevel | null },
+  { id: "document", name: "資料", icon: "file-text", color: "#22C55E", requiredTier: null as TierLevel | null },
+  { id: "app", name: "アプリ", icon: "app-window", color: "#A855F7", requiredTier: null as TierLevel | null },
+  { id: "training", name: "トレーニング", icon: "dumbbell", color: "#F97316", requiredTier: null as TierLevel | null },
+  { id: "communication", name: "コミュニケーション", icon: "message-circle", color: "#EC4899", requiredTier: null as TierLevel | null },
+  { id: "finance", name: "経理・財務", icon: "calculator", color: "#EAB308", requiredTier: "1" as TierLevel | null },
 ];
 
-type Category = { id: string; name: string; icon: string; color: string };
+// Tier Colors for badges
+const tierBadgeColors: Record<TierLevel, string> = {
+  "1": "bg-red-500",
+  "2": "bg-orange-500",
+  "3": "bg-yellow-500",
+  "4": "bg-blue-500",
+  "5": "bg-green-500",
+};
+
+type Category = { id: string; name: string; icon: string; color: string; requiredTier?: TierLevel | null };
 
 export default function HomePage() {
   const router = useRouter();
   const { user, loading: authLoading, isAuthenticated, logout } = useAuth();
   const { theme, setTheme } = useTheme();
+  const isTier1 = user?.tier === "1";
 
   // State
   const [searchQuery, setSearchQuery] = useState("");
@@ -115,29 +128,85 @@ export default function HomePage() {
   const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
 
   // Category management state
-  const [categories, setCategories] = useState<Category[]>(defaultCategories);
   const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [deletingCategory, setDeletingCategory] = useState<Category | null>(null);
-  const [newCategory, setNewCategory] = useState({ name: "", icon: "folder", color: "#3B82F6" });
+  const [newCategory, setNewCategory] = useState({ name: "", icon: "folder", color: "#3B82F6", requiredTier: null as TierLevel | null });
 
-  // Load categories from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem("fiterre-categories");
-    if (saved) {
-      try {
-        setCategories(JSON.parse(saved));
-      } catch {
-        setCategories(defaultCategories);
-      }
+  // Load categories from DB
+  const {
+    data: dbCategories,
+    isLoading: categoriesLoading,
+    refetch: refetchCategories,
+  } = trpc.categories.listAll.useQuery(undefined, {
+    enabled: isAuthenticated && isTier1,
+  });
+
+  const {
+    data: userCategories,
+    refetch: refetchUserCategories,
+  } = trpc.categories.list.useQuery(undefined, {
+    enabled: isAuthenticated && !isTier1,
+  });
+
+  // Merge DB categories with defaults (for migration)
+  const categories = useMemo(() => {
+    const cats = isTier1 ? dbCategories : userCategories;
+    if (cats && cats.length > 0) {
+      return cats.map(c => ({
+        id: c.id,
+        name: c.name,
+        icon: c.icon || "folder",
+        color: c.color || "#3B82F6",
+        requiredTier: c.requiredTier as TierLevel | null,
+      }));
     }
-  }, []);
+    return defaultCategories;
+  }, [dbCategories, userCategories, isTier1]);
 
-  // Save categories to localStorage
-  const saveCategories = (newCategories: Category[]) => {
-    setCategories(newCategories);
-    localStorage.setItem("fiterre-categories", JSON.stringify(newCategories));
-  };
+  // Category mutations
+  const createCategoryMutation = trpc.categories.create.useMutation({
+    onSuccess: () => {
+      toast.success("カテゴリを追加しました");
+      refetchCategories();
+      refetchUserCategories();
+      setIsAddCategoryOpen(false);
+      setNewCategory({ name: "", icon: "folder", color: "#3B82F6", requiredTier: null });
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const updateCategoryMutation = trpc.categories.update.useMutation({
+    onSuccess: () => {
+      toast.success("カテゴリを更新しました");
+      refetchCategories();
+      refetchUserCategories();
+      setEditingCategory(null);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const deleteCategoryMutation = trpc.categories.delete.useMutation({
+    onSuccess: () => {
+      toast.success("カテゴリを削除しました");
+      refetchCategories();
+      refetchUserCategories();
+      setDeletingCategory(null);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  // Sync default categories to DB on first load (migration)
+  const syncCategoryMutation = trpc.categories.syncAll.useMutation();
+  useEffect(() => {
+    if (isTier1 && dbCategories && dbCategories.length === 0) {
+      syncCategoryMutation.mutate(defaultCategories.map((c, i) => ({
+        ...c,
+        sortOrder: i,
+        requiredTier: c.requiredTier || undefined,
+      })));
+    }
+  }, [isTier1, dbCategories]);
 
   // Form state
   const [newResource, setNewResource] = useState({
@@ -145,6 +214,7 @@ export default function HomePage() {
     url: "",
     description: "",
     category: "",
+    requiredTier: null as TierLevel | null,
   });
 
   // tRPC queries
@@ -162,7 +232,7 @@ export default function HomePage() {
       toast.success("追加しました");
       refetchResources();
       setIsAddResourceOpen(false);
-      setNewResource({ title: "", url: "", description: "", category: "" });
+      setNewResource({ title: "", url: "", description: "", category: "", requiredTier: null });
     },
     onError: (e) => toast.error(e.message),
   });
@@ -216,8 +286,6 @@ export default function HomePage() {
     return counts;
   }, [resources]);
 
-  const isTier1 = user?.tier === "1";
-
   // Handle resource click
   const handleResourceClick = (resource: any) => {
     logAccess.mutate({
@@ -245,11 +313,14 @@ export default function HomePage() {
       toast.error("カテゴリ名を入力してください");
       return;
     }
-    const id = "cat-" + Date.now();
-    saveCategories([...categories, { ...newCategory, id }]);
-    setNewCategory({ name: "", icon: "folder", color: "#3B82F6" });
-    setIsAddCategoryOpen(false);
-    toast.success("カテゴリを追加しました");
+    createCategoryMutation.mutate({
+      id: "cat-" + Date.now(),
+      name: newCategory.name,
+      icon: newCategory.icon,
+      color: newCategory.color,
+      requiredTier: newCategory.requiredTier || undefined,
+      sortOrder: categories.length,
+    });
   };
 
   const handleUpdateCategory = () => {
@@ -258,16 +329,18 @@ export default function HomePage() {
       toast.error("カテゴリ名を入力してください");
       return;
     }
-    saveCategories(categories.map(c => c.id === editingCategory.id ? editingCategory : c));
-    setEditingCategory(null);
-    toast.success("カテゴリを更新しました");
+    updateCategoryMutation.mutate({
+      id: editingCategory.id,
+      name: editingCategory.name,
+      icon: editingCategory.icon,
+      color: editingCategory.color,
+      requiredTier: editingCategory.requiredTier || undefined,
+    });
   };
 
   const handleDeleteCategory = () => {
     if (!deletingCategory) return;
-    saveCategories(categories.filter(c => c.id !== deletingCategory.id));
-    setDeletingCategory(null);
-    toast.success("カテゴリを削除しました");
+    deleteCategoryMutation.mutate({ id: deletingCategory.id });
   };
 
   // Loading state
@@ -338,14 +411,19 @@ export default function HomePage() {
                   <button
                     key={resource.id}
                     onClick={() => handleResourceClick(resource)}
-                    className="flex flex-col items-center gap-2 p-2 rounded-2xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    className="flex flex-col items-center gap-2 p-2 rounded-2xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors relative"
                   >
                     <div
-                      className="w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg"
+                      className="w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg relative"
                       style={{ backgroundColor: categories.find(c => c.id === resource.category)?.color || "#6B7280" }}
                     >
                       <ExternalLink className="h-6 w-6" />
                     </div>
+                    {resource.requiredTier && (
+                      <div className={"absolute top-1 right-1 px-1 py-0.5 rounded text-[9px] text-white font-bold " + tierBadgeColors[resource.requiredTier as TierLevel]}>
+                        T{resource.requiredTier}
+                      </div>
+                    )}
                     <span className="text-xs text-center line-clamp-2 text-gray-900 dark:text-white">{resource.title}</span>
                   </button>
                 ))}
@@ -356,18 +434,32 @@ export default function HomePage() {
               {categories.map((category) => {
                 const Icon = iconMap[category.icon] || FolderOpen;
                 const count = resourceCounts[category.id] || 0;
+                const userTier = parseInt(user?.tier || "5");
+                const categoryTier = category.requiredTier ? parseInt(category.requiredTier) : null;
+                const hasAccess = !categoryTier || userTier <= categoryTier;
+                
                 return (
                   <button
                     key={category.id}
-                    onClick={() => setSelectedCategory(category.id)}
-                    className="flex flex-col items-center gap-3 p-4 rounded-3xl hover:bg-white/50 dark:hover:bg-gray-800/50 transition-all hover:scale-105 active:scale-95"
+                    onClick={() => hasAccess ? setSelectedCategory(category.id) : toast.error(`このカテゴリはTier ${category.requiredTier}以上の権限が必要です`)}
+                    className={"flex flex-col items-center gap-3 p-4 rounded-3xl transition-all hover:scale-105 active:scale-95 relative " + (hasAccess ? "hover:bg-white/50 dark:hover:bg-gray-800/50" : "opacity-60 cursor-not-allowed")}
                   >
                     <div
-                      className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center text-white shadow-xl"
+                      className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center text-white shadow-xl relative"
                       style={{ backgroundColor: category.color }}
                     >
                       <Icon className="h-8 w-8 sm:h-10 sm:w-10" />
+                      {!hasAccess && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-2xl">
+                          <Lock className="h-6 w-6 text-white" />
+                        </div>
+                      )}
                     </div>
+                    {category.requiredTier && (
+                      <div className={"absolute top-2 right-2 px-1.5 py-0.5 rounded text-[10px] text-white font-bold " + tierBadgeColors[category.requiredTier as TierLevel]}>
+                        T{category.requiredTier}
+                      </div>
+                    )}
                     <div className="text-center">
                       <p className="text-sm font-medium text-gray-900 dark:text-white">{category.name}</p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">{count}件</p>
@@ -401,11 +493,41 @@ export default function HomePage() {
                 <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-lg font-bold text-primary">
                   {(user?.name || "U")[0]}
                 </div>
-                <div>
+                <div className="flex-1">
                   <p className="font-medium text-gray-900 dark:text-gray-100">{user?.name || "ユーザー"}</p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">{user?.email}</p>
                 </div>
+                {user?.tier && (
+                  <div className={"px-2 py-1 rounded text-xs text-white font-bold " + tierBadgeColors[user.tier as TierLevel]}>
+                    Tier {user.tier}
+                  </div>
+                )}
               </div>
+              
+              {/* Tier Information Section */}
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl space-y-3">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  <p className="text-sm font-medium text-blue-700 dark:text-blue-300">あなたの権限レベル</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    <span className={"inline-block px-2 py-0.5 rounded text-white font-bold mr-2 " + tierBadgeColors[user?.tier as TierLevel || "5"]}>
+                      {tierLabels[user?.tier as TierLevel || "5"]}
+                    </span>
+                  </p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    {tierDescriptions[user?.tier as TierLevel || "5"]}
+                  </p>
+                </div>
+                <div className="border-t border-blue-200 dark:border-blue-700 pt-2 mt-2">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-1">利用可能なリソース:</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    Tier {user?.tier || "5"} 以下の制限がかかったリソースとカテゴリにアクセスできます。
+                  </p>
+                </div>
+              </div>
+
               {isTier1 && (
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-500 dark:text-gray-400">管理者メニュー</p>
@@ -441,10 +563,15 @@ export default function HomePage() {
                 const Icon = iconMap[category.icon] || FolderOpen;
                 return (
                   <div key={category.id} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white" style={{ backgroundColor: category.color }}>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white relative" style={{ backgroundColor: category.color }}>
                       <Icon className="h-5 w-5" />
                     </div>
                     <span className="flex-1 text-gray-900 dark:text-gray-100">{category.name}</span>
+                    {category.requiredTier && (
+                      <span className={"px-2 py-0.5 rounded text-xs text-white font-bold " + tierBadgeColors[category.requiredTier as TierLevel]}>
+                        T{category.requiredTier}
+                      </span>
+                    )}
                     <button onClick={() => setEditingCategory(category)} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg">
                       <Pencil className="h-4 w-4 text-gray-600 dark:text-gray-400" />
                     </button>
@@ -495,6 +622,29 @@ export default function HomePage() {
                   ))}
                 </div>
               </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">
+                  <Shield className="inline h-4 w-4 mr-1" />閲覧権限（Tier制限）
+                </label>
+                <select
+                  value={newCategory.requiredTier || "none"}
+                  onChange={(e) => setNewCategory({ ...newCategory, requiredTier: e.target.value === "none" ? null : e.target.value as TierLevel })}
+                  className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                >
+                  <option value="none">制限なし（全員がアクセス可能）</option>
+                  <option value="1">{tierLabels["1"]}</option>
+                  <option value="2">{tierLabels["2"]}</option>
+                  <option value="3">{tierLabels["3"]}</option>
+                  <option value="4">{tierLabels["4"]}</option>
+                  <option value="5">{tierLabels["5"]}</option>
+                </select>
+                {newCategory.requiredTier && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                    <Lock className="inline h-3 w-3 mr-1" />
+                    {tierDescriptions[newCategory.requiredTier]}
+                  </p>
+                )}
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAddCategoryOpen(false)}>キャンセル</Button>
@@ -535,6 +685,29 @@ export default function HomePage() {
                       <button key={opt.id} onClick={() => setEditingCategory({ ...editingCategory, color: opt.id })} className={"w-8 h-8 rounded-full transition-all " + (editingCategory.color === opt.id ? "ring-2 ring-offset-2 ring-primary dark:ring-offset-gray-900" : "")} style={{ backgroundColor: opt.id }} />
                     ))}
                   </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">
+                    <Shield className="inline h-4 w-4 mr-1" />閲覧権限（Tier制限）
+                  </label>
+                  <select
+                    value={editingCategory.requiredTier || "none"}
+                    onChange={(e) => setEditingCategory({ ...editingCategory, requiredTier: e.target.value === "none" ? null : e.target.value as TierLevel })}
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                  >
+                    <option value="none">制限なし（全員がアクセス可能）</option>
+                    <option value="1">{tierLabels["1"]}</option>
+                    <option value="2">{tierLabels["2"]}</option>
+                    <option value="3">{tierLabels["3"]}</option>
+                    <option value="4">{tierLabels["4"]}</option>
+                    <option value="5">{tierLabels["5"]}</option>
+                  </select>
+                  {editingCategory.requiredTier && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                      <Lock className="inline h-3 w-3 mr-1" />
+                      {tierDescriptions[editingCategory.requiredTier]}
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -609,11 +782,16 @@ export default function HomePage() {
             {filteredResources.map((resource) => (
               <div key={resource.id} className="relative group">
                 <button onClick={() => handleResourceClick(resource)} className="w-full flex flex-col items-center gap-2 p-2 rounded-2xl hover:bg-white/50 dark:hover:bg-gray-800/50 transition-all active:scale-95">
-                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg" style={{ backgroundColor: currentCategory?.color }}>
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg relative" style={{ backgroundColor: currentCategory?.color }}>
                     <ExternalLink className="h-6 w-6" />
                   </div>
                   <span className="text-xs text-center line-clamp-2 leading-tight text-gray-900 dark:text-white">{resource.title}</span>
                 </button>
+                {resource.requiredTier && (
+                  <div className={"absolute top-1 left-1 px-1 py-0.5 rounded text-[9px] text-white font-bold " + tierBadgeColors[resource.requiredTier as TierLevel]}>
+                    T{resource.requiredTier}
+                  </div>
+                )}
                 {isTier1 && (
                   <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
                     <button onClick={(e) => { e.stopPropagation(); setEditingResource(resource); }} className="p-1 bg-white dark:bg-gray-800 rounded-full shadow-lg">
@@ -638,10 +816,33 @@ export default function HomePage() {
             <div><label className="text-sm font-medium text-gray-700 dark:text-gray-300">タイトル</label><Input value={newResource.title} onChange={(e) => setNewResource({ ...newResource, title: e.target.value })} placeholder="例: Google Drive" /></div>
             <div><label className="text-sm font-medium text-gray-700 dark:text-gray-300">URL</label><Input value={newResource.url} onChange={(e) => setNewResource({ ...newResource, url: e.target.value })} placeholder="https://..." /></div>
             <div><label className="text-sm font-medium text-gray-700 dark:text-gray-300">説明（任意）</label><Input value={newResource.description} onChange={(e) => setNewResource({ ...newResource, description: e.target.value })} placeholder="メモ" /></div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-1">
+                <Shield className="h-4 w-4" />閲覧権限（Tier制限）
+              </label>
+              <select
+                value={newResource.requiredTier || "none"}
+                onChange={(e) => setNewResource({ ...newResource, requiredTier: e.target.value === "none" ? null : e.target.value as TierLevel })}
+                className="w-full mt-1 p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              >
+                <option value="none">制限なし（全員がアクセス可能）</option>
+                <option value="1">{tierLabels["1"]}</option>
+                <option value="2">{tierLabels["2"]}</option>
+                <option value="3">{tierLabels["3"]}</option>
+                <option value="4">{tierLabels["4"]}</option>
+                <option value="5">{tierLabels["5"]}</option>
+              </select>
+              {newResource.requiredTier && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                  <Lock className="inline h-3 w-3 mr-1" />
+                  {tierDescriptions[newResource.requiredTier]}
+                </p>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddResourceOpen(false)}>キャンセル</Button>
-            <Button onClick={() => createResource.mutate(newResource)} disabled={!newResource.title || !newResource.url || createResource.isPending}>
+            <Button onClick={() => createResource.mutate({ ...newResource, requiredTier: newResource.requiredTier || undefined })} disabled={!newResource.title || !newResource.url || createResource.isPending}>
               {createResource.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "追加"}
             </Button>
           </DialogFooter>
@@ -662,11 +863,34 @@ export default function HomePage() {
                   {categories.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
                 </select>
               </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-1">
+                  <Shield className="h-4 w-4" />閲覧権限（Tier制限）
+                </label>
+                <select
+                  value={editingResource.requiredTier || "none"}
+                  onChange={(e) => setEditingResource({ ...editingResource, requiredTier: e.target.value === "none" ? null : e.target.value as TierLevel })}
+                  className="w-full mt-1 p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                >
+                  <option value="none">制限なし（全員がアクセス可能）</option>
+                  <option value="1">{tierLabels["1"]}</option>
+                  <option value="2">{tierLabels["2"]}</option>
+                  <option value="3">{tierLabels["3"]}</option>
+                  <option value="4">{tierLabels["4"]}</option>
+                  <option value="5">{tierLabels["5"]}</option>
+                </select>
+                {editingResource.requiredTier && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                    <Lock className="inline h-3 w-3 mr-1" />
+                    {tierDescriptions[editingResource.requiredTier as TierLevel]}
+                  </p>
+                )}
+              </div>
             </div>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingResource(null)}>キャンセル</Button>
-            <Button onClick={() => updateResource.mutate({ id: editingResource.id, title: editingResource.title, url: editingResource.url, description: editingResource.description, category: editingResource.category })} disabled={updateResource.isPending}>
+            <Button onClick={() => updateResource.mutate({ id: editingResource.id, title: editingResource.title, url: editingResource.url, description: editingResource.description, category: editingResource.category, requiredTier: editingResource.requiredTier || null })} disabled={updateResource.isPending}>
               {updateResource.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "保存"}
             </Button>
           </DialogFooter>

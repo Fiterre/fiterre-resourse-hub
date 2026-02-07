@@ -19,8 +19,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Save, Loader2 } from "lucide-react";
-import { type TierLevel, tierLabels } from "@/types";
+import { Save, Loader2, Lock, Shield } from "lucide-react";
+import { type TierLevel, tierLabels, tierDescriptions } from "@/types";
 
 interface EditResourceDialogProps {
   resource: any;
@@ -127,7 +127,10 @@ export function EditResourceDialog({
             <Input value={labels} onChange={(e) => setLabels(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label>Tier制限</Label>
+            <Label className="flex items-center gap-1">
+              <Shield className="h-4 w-4" />
+              Tier制限（閲覧権限）
+            </Label>
             <Select
               value={requiredTier}
               onValueChange={(v) => setRequiredTier(v as TierLevel | "none")}
@@ -136,7 +139,7 @@ export function EditResourceDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">制限なし</SelectItem>
+                <SelectItem value="none">制限なし（全員がアクセス可能）</SelectItem>
                 {(["1", "2", "3", "4", "5"] as TierLevel[]).map((tier) => (
                   <SelectItem key={tier} value={tier}>
                     {tierLabels[tier]}
@@ -144,6 +147,12 @@ export function EditResourceDialog({
                 ))}
               </SelectContent>
             </Select>
+            {requiredTier !== "none" && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                <Lock className="inline h-3 w-3 mr-1" />
+                {tierDescriptions[requiredTier as TierLevel]}
+              </p>
+            )}
           </div>
           <div className="flex items-center justify-between">
             <Label>外部リンク</Label>
