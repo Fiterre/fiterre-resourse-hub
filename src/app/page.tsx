@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { trpc } from "@/lib/trpc/client";
@@ -34,6 +34,11 @@ import {
   Moon,
   Sun,
   ChevronLeft,
+  Briefcase,
+  GraduationCap,
+  Heart,
+  Star,
+  Zap,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 
@@ -47,7 +52,40 @@ const iconMap: Record<string, any> = {
   calculator: Calculator,
   globe: Globe,
   folder: FolderOpen,
+  briefcase: Briefcase,
+  "graduation-cap": GraduationCap,
+  heart: Heart,
+  star: Star,
+  zap: Zap,
 };
+
+const iconOptions = [
+  { id: "settings", label: "設定" },
+  { id: "file-text", label: "ファイル" },
+  { id: "app-window", label: "アプリ" },
+  { id: "dumbbell", label: "ダンベル" },
+  { id: "message-circle", label: "メッセージ" },
+  { id: "calculator", label: "計算機" },
+  { id: "globe", label: "地球" },
+  { id: "folder", label: "フォルダ" },
+  { id: "briefcase", label: "ブリーフケース" },
+  { id: "graduation-cap", label: "卒業帽" },
+  { id: "heart", label: "ハート" },
+  { id: "star", label: "星" },
+  { id: "zap", label: "稲妻" },
+];
+
+const colorOptions = [
+  { id: "#3B82F6", label: "青" },
+  { id: "#22C55E", label: "緑" },
+  { id: "#A855F7", label: "紫" },
+  { id: "#F97316", label: "オレンジ" },
+  { id: "#EC4899", label: "ピンク" },
+  { id: "#EAB308", label: "黄" },
+  { id: "#EF4444", label: "赤" },
+  { id: "#14B8A6", label: "ティール" },
+  { id: "#6366F1", label: "インディゴ" },
+];
 
 // デフォルトカテゴリ
 const defaultCategories = [
@@ -58,6 +96,8 @@ const defaultCategories = [
   { id: "communication", name: "コミュニケーション", icon: "message-circle", color: "#EC4899" },
   { id: "finance", name: "経理・財務", icon: "calculator", color: "#EAB308" },
 ];
+
+type Category = { id: string; name: string; icon: string; color: string };
 
 export default function HomePage() {
   const router = useRouter();
@@ -74,6 +114,31 @@ export default function HomePage() {
   const [deletingResource, setDeletingResource] = useState<any>(null);
   const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
 
+  // Category management state
+  const [categories, setCategories] = useState<Category[]>(defaultCategories);
+  const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [deletingCategory, setDeletingCategory] = useState<Category | null>(null);
+  const [newCategory, setNewCategory] = useState({ name: "", icon: "folder", color: "#3B82F6" });
+
+  // Load categories from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem("fiterre-categories");
+    if (saved) {
+      try {
+        setCategories(JSON.parse(saved));
+      } catch {
+        setCategories(defaultCategories);
+      }
+    }
+  }, []);
+
+  // Save categories to localStorage
+  const saveCategories = (newCategories: Category[]) => {
+    setCategories(newCategories);
+    localStorage.setItem("fiterre-categories", JSON.stringify(newCategories));
+  };
+
   // Form state
   const [newResource, setNewResource] = useState({
     title: "",
@@ -81,9 +146,6 @@ export default function HomePage() {
     description: "",
     category: "",
   });
-
-  // Categories state
-  const categories = defaultCategories;
 
   // tRPC queries
   const {
@@ -175,6 +237,37 @@ export default function HomePage() {
       }, index * 100);
     });
     toast.success(filteredResources.length + "件のリソースを開きました");
+  };
+
+  // Category CRUD handlers
+  const handleAddCategory = () => {
+    if (!newCategory.name.trim()) {
+      toast.error("カテゴリ名を入力してください");
+      return;
+    }
+    const id = "cat-" + Date.now();
+    saveCategories([...categories, { ...newCategory, id }]);
+    setNewCategory({ name: "", icon: "folder", color: "#3B82F6" });
+    setIsAddCategoryOpen(false);
+    toast.success("カテゴリを追加しました");
+  };
+
+  const handleUpdateCategory = () => {
+    if (!editingCategory) return;
+    if (!editingCategory.name.trim()) {
+      toast.error("カテゴリ名を入力してください");
+      return;
+    }
+    saveCategories(categories.map(c => c.id === editingCategory.id ? editingCategory : c));
+    setEditingCategory(null);
+    toast.success("カテゴリを更新しました");
+  };
+
+  const handleDeleteCategory = () => {
+    if (!deletingCategory) return;
+    saveCategories(categories.filter(c => c.id !== deletingCategory.id));
+    setDeletingCategory(null);
+    toast.success("カテゴリを削除しました");
   };
 
   // Loading state
@@ -352,14 +445,117 @@ export default function HomePage() {
                       <Icon className="h-5 w-5" />
                     </div>
                     <span className="flex-1">{category.name}</span>
-                    <button className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg">
+                    <button onClick={() => setEditingCategory(category)} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg">
                       <Pencil className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => setDeletingCategory(category)} className="p-2 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg text-red-500">
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
                 );
               })}
             </div>
-            <p className="text-xs text-center text-gray-500">カテゴリはコード内で管理されています</p>
+            <DialogFooter>
+              <Button onClick={() => { setIsCategorySettingsOpen(false); setIsAddCategoryOpen(true); }} className="w-full">
+                <Plus className="h-4 w-4 mr-2" />カテゴリを追加
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add Category Dialog */}
+        <Dialog open={isAddCategoryOpen} onOpenChange={setIsAddCategoryOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>カテゴリを追加</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <label className="text-sm font-medium">カテゴリ名</label>
+                <Input value={newCategory.name} onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })} placeholder="例: マーケティング" />
+              </div>
+              <div>
+                <label className="text-sm font-medium block mb-2">アイコン</label>
+                <div className="grid grid-cols-6 gap-2">
+                  {iconOptions.map((opt) => {
+                    const Icon = iconMap[opt.id] || FolderOpen;
+                    return (
+                      <button key={opt.id} onClick={() => setNewCategory({ ...newCategory, icon: opt.id })} className={"p-2 rounded-lg transition-colors " + (newCategory.icon === opt.id ? "bg-primary text-white" : "bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700")}>
+                        <Icon className="h-5 w-5 mx-auto" />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium block mb-2">カラー</label>
+                <div className="flex gap-2 flex-wrap">
+                  {colorOptions.map((opt) => (
+                    <button key={opt.id} onClick={() => setNewCategory({ ...newCategory, color: opt.id })} className={"w-8 h-8 rounded-full transition-all " + (newCategory.color === opt.id ? "ring-2 ring-offset-2 ring-primary" : "")} style={{ backgroundColor: opt.id }} />
+                  ))}
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsAddCategoryOpen(false)}>キャンセル</Button>
+              <Button onClick={handleAddCategory}>追加</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Category Dialog */}
+        <Dialog open={!!editingCategory} onOpenChange={(open) => !open && setEditingCategory(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>カテゴリを編集</DialogTitle>
+            </DialogHeader>
+            {editingCategory && (
+              <div className="space-y-4 py-4">
+                <div>
+                  <label className="text-sm font-medium">カテゴリ名</label>
+                  <Input value={editingCategory.name} onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })} />
+                </div>
+                <div>
+                  <label className="text-sm font-medium block mb-2">アイコン</label>
+                  <div className="grid grid-cols-6 gap-2">
+                    {iconOptions.map((opt) => {
+                      const Icon = iconMap[opt.id] || FolderOpen;
+                      return (
+                        <button key={opt.id} onClick={() => setEditingCategory({ ...editingCategory, icon: opt.id })} className={"p-2 rounded-lg transition-colors " + (editingCategory.icon === opt.id ? "bg-primary text-white" : "bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700")}>
+                          <Icon className="h-5 w-5 mx-auto" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium block mb-2">カラー</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {colorOptions.map((opt) => (
+                      <button key={opt.id} onClick={() => setEditingCategory({ ...editingCategory, color: opt.id })} className={"w-8 h-8 rounded-full transition-all " + (editingCategory.color === opt.id ? "ring-2 ring-offset-2 ring-primary" : "")} style={{ backgroundColor: opt.id }} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditingCategory(null)}>キャンセル</Button>
+              <Button onClick={handleUpdateCategory}>保存</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Category Confirmation */}
+        <Dialog open={!!deletingCategory} onOpenChange={(open) => !open && setDeletingCategory(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>カテゴリを削除</DialogTitle>
+            </DialogHeader>
+            <p className="py-4">「{deletingCategory?.name}」を削除しますか？<br /><span className="text-sm text-gray-500">このカテゴリ内のリソースは削除されません。</span></p>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeletingCategory(null)}>キャンセル</Button>
+              <Button variant="destructive" onClick={handleDeleteCategory}>削除</Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 
@@ -477,7 +673,7 @@ export default function HomePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Resource Confirmation Dialog */}
       <Dialog open={!!deletingResource} onOpenChange={(open) => !open && setDeletingResource(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>削除の確認</DialogTitle></DialogHeader>
