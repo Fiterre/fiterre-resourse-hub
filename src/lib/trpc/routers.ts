@@ -67,10 +67,31 @@ const authRouter = router({
         password: z
           .string()
           .min(8, "パスワードは8文字以上で入力してください"),
-        inviteToken: z.string().optional(),
+        inviteToken: z.string().min(1, "招待トークンが必要です"),
       })
     )
     .mutation(async ({ input }) => {
+      // Check invitation token first - REQUIRED
+      const invitation = await getInvitationByToken(input.inviteToken);
+      if (!invitation) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "無効な招待トークンです。管理者から招待リンクを取得してください。",
+        });
+      }
+      if (invitation.status !== "pending") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "この招待は既に使用されています。",
+        });
+      }
+      if (new Date() > new Date(invitation.expiresAt)) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "この招待は期限切れです。管理者に新しい招待を依頼してください。",
+        });
+      }
+
       // Check if user already exists
       const existing = await getUserByEmail(input.email);
       if (existing) {
@@ -80,33 +101,16 @@ const authRouter = router({
         });
       }
 
-      // Check invitation token for initial tier
-      let initialTier: "1" | "2" | "3" | "4" | "5" = "5";
-      if (input.inviteToken) {
-        const invitation = await getInvitationByToken(input.inviteToken);
-        if (
-          invitation &&
-          invitation.status === "pending" &&
-          new Date() <= new Date(invitation.expiresAt)
-        ) {
-          initialTier = invitation.initialTier;
-        }
-      }
-
+      // Create user with the tier from invitation
       const user = await createUser({
         name: input.name,
         email: input.email,
         password: input.password,
-        tier: initialTier,
+        tier: invitation.initialTier,
       });
 
-      // Accept invitation if token was provided
-      if (input.inviteToken) {
-        const invitation = await getInvitationByToken(input.inviteToken);
-        if (invitation && invitation.status === "pending") {
-          await updateInvitationStatus(invitation.id, "accepted", user.id);
-        }
-      }
+      // Mark invitation as accepted
+      await updateInvitationStatus(invitation.id, "accepted", user.id);
 
       return { success: true, message: "アカウントを作成しました" };
     }),

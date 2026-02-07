@@ -61,7 +61,7 @@ export function InvitationDialog() {
 
       const inviteUrl = `${window.location.origin}/register?token=${data.token}`;
       navigator.clipboard.writeText(inviteUrl);
-      toast.info("招待リンクをクリップボードにコピーしました");
+      toast.info("招待リンクをコピーしました。メールやチャットで相手に送ってください。", { duration: 5000 });
     },
     onError: (error) => {
       toast.error(error.message);
@@ -141,9 +141,13 @@ export function InvitationDialog() {
             ユーザー招待
           </DialogTitle>
           <DialogDescription>
-            メールアドレスで新しいユーザーを招待し、初期Tierを設定できます。
+            招待リンクを作成し、メールやチャットで相手に送信してください。招待されたユーザーのみ登録できます。
           </DialogDescription>
         </DialogHeader>
+
+        <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-sm">
+          <strong>招待の流れ：</strong> 招待作成 → リンクをコピー → メール/チャットで送信 → 相手がリンクから登録
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 border-b pb-6">
           <div className="grid gap-4 sm:grid-cols-2">

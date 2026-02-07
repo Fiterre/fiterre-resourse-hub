@@ -691,31 +691,103 @@ export default function HomePage() {
 }
 
 function UserManagementDialogSimple({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const [tab, setTab] = useState<"users" | "invite">("users");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteTier, setInviteTier] = useState<"1" | "2" | "3" | "4" | "5">("5");
+
   const { data: users = [], refetch } = trpc.users.list.useQuery(undefined, { enabled: open });
+  const { data: invitations = [], refetch: refetchInvitations } = trpc.invitations.list.useQuery(undefined, { enabled: open && tab === "invite" });
+
   const updateTier = trpc.users.updateTier.useMutation({ onSuccess: () => { toast.success("更新しました"); refetch(); }, onError: (e) => toast.error(e.message) });
+  const createInvitation = trpc.invitations.create.useMutation({
+    onSuccess: (data) => {
+      const inviteUrl = `${window.location.origin}/register?token=${data.token}`;
+      navigator.clipboard.writeText(inviteUrl);
+      toast.success("招待リンクをコピーしました。メールやチャットで相手に送ってください。", { duration: 5000 });
+      setInviteEmail("");
+      setInviteTier("5");
+      refetchInvitations();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const deleteInvitation = trpc.invitations.delete.useMutation({ onSuccess: () => { toast.success("削除しました"); refetchInvitations(); }, onError: (e) => toast.error(e.message) });
+
+  const handleInvite = () => {
+    if (!inviteEmail) { toast.error("メールアドレスを入力してください"); return; }
+    createInvitation.mutate({ email: inviteEmail, initialTier: inviteTier, expiresInDays: 7 });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader><DialogTitle>ユーザー管理</DialogTitle></DialogHeader>
-        <div className="space-y-3 py-4 max-h-96 overflow-y-auto">
-          {users.map((user) => (
-            <div key={user.id} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">{(user.name || "U")[0]}</div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium truncate">{user.name || "名前なし"}</p>
-                <p className="text-xs text-gray-500 truncate">{user.email}</p>
+        
+        {/* Tabs */}
+        <div className="flex gap-2 border-b pb-2">
+          <button onClick={() => setTab("users")} className={"px-3 py-1 rounded-lg text-sm " + (tab === "users" ? "bg-primary text-white" : "hover:bg-gray-100 dark:hover:bg-gray-800")}>ユーザー一覧</button>
+          <button onClick={() => setTab("invite")} className={"px-3 py-1 rounded-lg text-sm " + (tab === "invite" ? "bg-primary text-white" : "hover:bg-gray-100 dark:hover:bg-gray-800")}>招待</button>
+        </div>
+
+        {tab === "users" ? (
+          <div className="space-y-3 py-2 max-h-80 overflow-y-auto">
+            {users.map((user) => (
+              <div key={user.id} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">{(user.name || "U")[0]}</div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{user.name || "名前なし"}</p>
+                  <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                </div>
+                <select value={user.tier} onChange={(e) => updateTier.mutate({ userId: user.id, tier: e.target.value as any })} className="text-sm p-1 border rounded dark:bg-gray-700">
+                  <option value="1">Tier 1</option>
+                  <option value="2">Tier 2</option>
+                  <option value="3">Tier 3</option>
+                  <option value="4">Tier 4</option>
+                  <option value="5">Tier 5</option>
+                </select>
               </div>
-              <select value={user.tier} onChange={(e) => updateTier.mutate({ userId: user.id, tier: e.target.value as any })} className="text-sm p-1 border rounded dark:bg-gray-700">
-                <option value="1">Tier 1 (管理者)</option>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-4 py-2">
+            {/* Create invitation form */}
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-sm text-blue-700 dark:text-blue-300">
+              <strong>招待の流れ：</strong> 招待作成 → リンクをコピー → メール/チャットで送信
+            </div>
+            <div className="flex gap-2">
+              <Input placeholder="メールアドレス" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className="flex-1" />
+              <select value={inviteTier} onChange={(e) => setInviteTier(e.target.value as any)} className="p-2 border rounded-lg dark:bg-gray-800">
+                <option value="1">Tier 1</option>
                 <option value="2">Tier 2</option>
                 <option value="3">Tier 3</option>
                 <option value="4">Tier 4</option>
                 <option value="5">Tier 5</option>
               </select>
+              <Button onClick={handleInvite} disabled={createInvitation.isPending}>
+                {createInvitation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "招待"}
+              </Button>
             </div>
-          ))}
-        </div>
+
+            {/* Pending invitations */}
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              <p className="text-xs text-gray-500 font-medium">保留中の招待</p>
+              {invitations.filter(i => i.status === "pending" && new Date(i.expiresAt) > new Date()).map((inv) => (
+                <div key={inv.id} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm">
+                  <span className="flex-1 truncate">{inv.email}</span>
+                  <span className="text-xs text-gray-500">Tier {inv.initialTier}</span>
+                  <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/register?token=${inv.token}`); toast.success("コピーしました"); }} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded">
+                    <ExternalLink className="h-3 w-3" />
+                  </button>
+                  <button onClick={() => deleteInvitation.mutate({ id: inv.id })} className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-500">
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+              {invitations.filter(i => i.status === "pending" && new Date(i.expiresAt) > new Date()).length === 0 && (
+                <p className="text-xs text-gray-400 text-center py-2">保留中の招待はありません</p>
+              )}
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

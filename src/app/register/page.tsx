@@ -55,6 +55,11 @@ function RegisterForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!inviteToken) {
+      toast.error("招待トークンが必要です");
+      return;
+    }
+
     if (password !== confirmPassword) {
       toast.error("パスワードが一致しません");
       return;
@@ -74,6 +79,30 @@ function RegisterForm() {
     });
   };
 
+  // 招待トークンがない場合はエラー表示
+  if (!inviteToken) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/30 p-4">
+        <Card className="max-w-md w-full">
+          <CardHeader className="text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-destructive/10 mx-auto mb-4">
+              <Dumbbell className="h-8 w-8 text-destructive" />
+            </div>
+            <CardTitle>招待が必要です</CardTitle>
+            <CardDescription>
+              このサービスは招待制です。管理者から招待リンクを受け取ってアクセスしてください。
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <Link href="/login">
+              <Button>ログインページへ</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/30 p-4">
       <div className="w-full max-w-md space-y-6">
@@ -85,18 +114,12 @@ function RegisterForm() {
           <h1 className="text-3xl font-bold tracking-tight">
             Fiterre Resource Hub
           </h1>
-          <p className="text-muted-foreground">
-            {inviteToken
-              ? "招待を受けてアカウントを作成"
-              : "新しいアカウントを作成"}
-          </p>
+          <p className="text-muted-foreground">招待を受けてアカウントを作成</p>
         </div>
 
-        {inviteToken && (
-          <div className="p-3 rounded-lg bg-primary/10 text-primary text-sm text-center">
-            招待リンクからのアクセスです。登録すると招待時に設定されたTierが適用されます。
-          </div>
-        )}
+        <div className="p-3 rounded-lg bg-primary/10 text-primary text-sm text-center">
+          招待リンクからのアクセスです。登録すると招待時に設定されたTierが適用されます。
+        </div>
 
         <Card className="border-border/50 shadow-lg">
           <CardHeader className="space-y-1 pb-4">
