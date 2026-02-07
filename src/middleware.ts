@@ -19,6 +19,11 @@ export default withAuth(
           return true;
         }
 
+        // Database init route is public (protected by token)
+        if (req.nextUrl.pathname.startsWith("/api/db/init")) {
+          return true;
+        }
+
         // tRPC routes handle their own auth
         if (req.nextUrl.pathname.startsWith("/api/trpc")) {
           return true;
